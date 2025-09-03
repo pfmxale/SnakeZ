@@ -36,134 +36,151 @@
     <div id="anleitung">Benutze die Pfeiltasten zum Steuern.</div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
 
-        // Spiel-Konfiguration
-        const gridSize = 20; // Größe jedes Gitterquadrats
-        const tileCount = canvas.width / gridSize; // Anzahl der Kacheln pro Reihe/Spalte
+      // Spiel-Konfiguration
+      const snakeRadius = 8;
+      const foodRadius = 5;
+      const speed = 2.5;
+      let snake = [{ x: canvas.width / 2, y: canvas.height / 2 }];
+      let food = {};
+      let score = 0;
+      let gameOver = false;
+      let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
 
-        // Spieler (Schlange)
-        let snake = [
-            { x: 10, y: 10 } // Startposition der Schlange
-        ];
-        let dx = 0; // Bewegungsrichtung x
-        let dy = 0; // Bewegungsrichtung y
+      function init() {
+        snake = [{ x: canvas.width / 2, y: canvas.height / 2 }];
+        // Füge Startsegmente hinzu, damit die Schlange länger ist
+        for (let i = 0; i < 20; i++) {
+            snake.push({ ...snake[0] });
+        }
+        score = 0;
+        gameOver = false;
+        placeFood();
+        gameLoop();
+      }
 
-        // Futter
-        let food = { x: 15, y: 15 };
-
-        let score = 0;
-        let gameOver = false;
-
-        // Haupt-Spiel-Schleife
-        function gameLoop() {
-            if (gameOver) {
-                ctx.fillStyle = 'white';
-                ctx.font = '50px "Courier New"';
-                ctx.fillText('Game Over', canvas.width / 6.5, canvas.height / 2);
-                ctx.font = '20px "Courier New"';
-                ctx.fillText('Drücke Enter zum Neustart', canvas.width / 5, canvas.height / 2 + 40);
-                return;
-            }
-
-            // Spiel aktualisieren
-            update();
-            // Spiel zeichnen
-            draw();
-
-            setTimeout(gameLoop, 100); // Geschwindigkeit des Spiels
+      // Haupt-Spiel-Schleife
+      function gameLoop() {
+        if (gameOver) {
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = 'white';
+          ctx.font = '50px "Courier New"';
+          ctx.textAlign = 'center';
+          ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+          ctx.font = '20px "Courier New"';
+          ctx.fillText('Klicke zum Neustart', canvas.width / 2, canvas.height / 2 + 40);
+          return;
         }
 
-        // Spielzustand aktualisieren
-        function update() {
-            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+        update();
+        draw();
 
-            // Kollision mit der Wand
-            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+        requestAnimationFrame(gameLoop); // Besser für flüssige Animationen
+      }
+
+      // Spielzustand aktualisieren
+      function update() {
+        const head = { ...snake[0] };
+
+        // Berechne den Winkel zum Mauszeiger
+        const angle = Math.atan2(mouse.y - head.y, mouse.x - head.x);
+
+        // Bewege den Kopf in Richtung des Winkels
+        head.x += Math.cos(angle) * speed;
+        head.y += Math.sin(angle) * speed;
+
+        // Kollision mit der Wand (abprallen lassen)
+        if (head.x < snakeRadius) head.x = snakeRadius;
+        if (head.x > canvas.width - snakeRadius) head.x = canvas.width - snakeRadius;
+        if (head.y < snakeRadius) head.y = snakeRadius;
+        if (head.y > canvas.height - snakeRadius) head.y = canvas.height - snakeRadius;
+
+        snake.unshift(head); // Neuen Kopf hinzufügen
+
+        // Kollision mit sich selbst
+        for (let i = 10; i < snake.length; i++) { // Beginne weiter hinten, um nicht sofort zu sterben
+            const dist = Math.hypot(head.x - snake[i].x, head.y - snake[i].y);
+            if (dist < snakeRadius) {
                 gameOver = true;
                 return;
             }
-
-            // Kollision mit sich selbst
-            for (let i = 1; i < snake.length; i++) {
-                if (head.x === snake[i].x && head.y === snake[i].y) {
-                    gameOver = true;
-                    return;
-                }
-            }
-
-            snake.unshift(head); // Neuen Kopf hinzufügen
-
-            // Futter essen
-            if (head.x === food.x && head.y === food.y) {
-                score++;
-                placeFood(); // Neues Futter platzieren
-            } else {
-                snake.pop(); // Letztes Segment entfernen, wenn kein Futter gegessen wurde
-            }
         }
 
-        // Alles auf dem Canvas zeichnen
-        function draw() {
-            // Hintergrund
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Schlange zeichnen
-            ctx.fillStyle = 'lime';
-            snake.forEach(segment => {
-                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
-            });
-
-            // Futter zeichnen
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize, gridSize);
-
-            // Punktestand
-            ctx.fillStyle = 'white';
-            ctx.font = '20px "Courier New"';
-            ctx.fillText('Score: ' + score, 10, 25);
-        }
-
-        // Futter an einer zufälligen Position platzieren
-        function placeFood() {
-            food.x = Math.floor(Math.random() * tileCount);
-            food.y = Math.floor(Math.random() * tileCount);
-        }
-
-        // Tastatureingaben verarbeiten
-        document.addEventListener('keydown', e => {
-            switch (e.key) {
-                case 'ArrowUp':
-                    if (dy === 0) { dx = 0; dy = -1; }
-                    break;
-                case 'ArrowDown':
-                    if (dy === 0) { dx = 0; dy = 1; }
-                    break;
-                case 'ArrowLeft':
-                    if (dx === 0) { dx = -1; dy = 0; }
-                    break;
-                case 'ArrowRight':
-                    if (dx === 0) { dx = 1; dy = 0; }
-                    break;
-                case 'Enter':
-                    if (gameOver) {
-                        // Spiel zurücksetzen
-                        snake = [{ x: 10, y: 10 }];
-                        dx = 0;
-                        dy = 0;
-                        score = 0;
-                        gameOver = false;
-                        placeFood();
-                        gameLoop();
-                    }
-                    break;
+        // Futter essen
+        const distToFood = Math.hypot(head.x - food.x, head.y - food.y);
+        if (distToFood < snakeRadius + foodRadius) {
+            score++;
+            // Schlange wachsen lassen, indem wir 5 neue Segmente hinzufügen
+            for (let i = 0; i < 5; i++) {
+                snake.push({ ...snake[snake.length - 1] });
             }
-        });
+            placeFood();
+        } else {
+            snake.pop(); // Letztes Segment entfernen, wenn kein Futter gegessen wurde
+        }
+      }
 
-        // Spiel starten
-        gameLoop();
+      // Alles auf dem Canvas zeichnen
+      function draw() {
+        // Hintergrund
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Futter zeichnen
+        ctx.beginPath();
+        ctx.arc(food.x, food.y, foodRadius, 0, Math.PI * 2);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+
+        // Schlange zeichnen (von hinten nach vorne)
+        for (let i = snake.length - 1; i >= 0; i--) {
+            const segment = snake[i];
+            ctx.beginPath();
+            ctx.arc(segment.x, segment.y, snakeRadius, 0, Math.PI * 2);
+            // Farbverlauf für die Schlange
+            const green = 150 + Math.floor(105 * (i / snake.length));
+            ctx.fillStyle = `rgb(0, ${green}, 0)`;
+            ctx.fill();
+        }
+
+        // Kopf hervorheben (Auge)
+        ctx.beginPath();
+        ctx.arc(snake[0].x, snake[0].y, snakeRadius / 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'white';
+        ctx.fill();
+
+        // Punktestand
+        ctx.fillStyle = 'white';
+        ctx.font = '20px "Courier New"';
+        ctx.textAlign = 'left';
+        ctx.fillText('Score: ' + score, 10, 25);
+      }
+
+      // Futter an einer zufälligen Position platzieren
+      function placeFood() {
+        food.x = Math.random() * (canvas.width - foodRadius * 2) + foodRadius;
+        food.y = Math.random() * (canvas.height - foodRadius * 2) + foodRadius;
+      }
+
+      // Mausbewegungen verfolgen
+      canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - rect.left;
+        mouse.y = e.clientY - rect.top;
+      });
+
+      // Neustart bei Klick nach Game Over
+      canvas.addEventListener('click', () => {
+        if (gameOver) {
+          init();
+        }
+      });
+
+      // Spiel starten
+      init();
     </script>
 
 </body>
