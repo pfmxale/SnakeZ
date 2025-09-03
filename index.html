@@ -3,185 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake Spiel</title>
-    <style>
-        body {
-            background-color: #333;
-            color: #eee;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-        h1 {
-            margin-bottom: 20px;
-        }
-        canvas {
-            background-color: #000;
-            border: 2px solid #eee;
-        }
-        #anleitung {
-            margin-top: 20px;
-            font-size: 1.2em;
-        }
-    </style>
+    <title>SnakeZ.io - Multiplayer Snake Game</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Main Menu -->
+    <div id="mainMenu" class="screen active">
+        <div class="menu-container">
+            <h1 class="game-title">SnakeZ.io</h1>
+            <div class="menu-content">
+                <div class="input-group">
+                    <label for="playerName">Spielername:</label>
+                    <input type="text" id="playerName" placeholder="Dein Name" maxlength="15">
+                </div>
+                
+                <div class="character-selection">
+                    <h3>W�hle deine Schlangen-Farbe:</h3>
+                    <div class="character-options">
+                        <div class="character-option active" data-color="#FF6B6B">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #FF6B6B, #FF8E8E);"></div>
+                        </div>
+                        <div class="character-option" data-color="#4ECDC4">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #4ECDC4, #6ED5CE);"></div>
+                        </div>
+                        <div class="character-option" data-color="#45B7D1">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #45B7D1, #67C3DB);"></div>
+                        </div>
+                        <div class="character-option" data-color="#96CEB4">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #96CEB4, #A8D8C4);"></div>
+                        </div>
+                        <div class="character-option" data-color="#FFEAA7">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #FFEAA7, #FFF0B8);"></div>
+                        </div>
+                        <div class="character-option" data-color="#DDA0DD">
+                            <div class="snake-preview" style="background: linear-gradient(45deg, #DDA0DD, #E6B5E6);"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="playButton" class="play-button">SPIELEN</button>
+                <div class="connection-status">
+                    <span id="connectionStatus">Verbinde zum Server...</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <h1>Snake</h1>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
-    <div id="anleitung">Benutze die Pfeiltasten zum Steuern.</div>
+    <!-- Game Screen -->
+    <div id="gameScreen" class="screen">
+        <div class="game-ui">
+            <div class="score-info">
+                <div class="current-score">
+                    <span>Punktzahl: </span>
+                    <span id="currentScore">0</span>
+                </div>
+                <div class="length-info">
+                    <span>L�nge: </span>
+                    <span id="currentLength">1</span>
+                </div>
+            </div>
+            <div class="leaderboard">
+                <h3>Bestenliste</h3>
+                <div id="leaderboardList"></div>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="game-over-overlay" id="gameOverOverlay" style="display: none;">
+            <div class="game-over-content">
+                <h2>Spiel Beendet!</h2>
+                <p>Deine finale Punktzahl: <span id="finalScore">0</span></p>
+                <p>Finale L�nge: <span id="finalLength">1</span></p>
+                <button id="playAgainButton" class="play-button">Nochmal spielen</button>
+            </div>
+        </div>
+    </div>
 
-    <script>
-      const canvas = document.getElementById('gameCanvas');
-      const ctx = canvas.getContext('2d');
-
-      // Spiel-Konfiguration
-      const snakeRadius = 8;
-      const foodRadius = 5;
-      const speed = 2.5;
-      let snake = [{ x: canvas.width / 2, y: canvas.height / 2 }];
-      let food = {};
-      let score = 0;
-      let gameOver = false;
-      let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
-
-      function init() {
-        snake = [{ x: canvas.width / 2, y: canvas.height / 2 }];
-        // Füge Startsegmente hinzu, damit die Schlange länger ist
-        for (let i = 0; i < 20; i++) {
-            snake.push({ ...snake[0] });
-        }
-        score = 0;
-        gameOver = false;
-        placeFood();
-        gameLoop();
-      }
-
-      // Haupt-Spiel-Schleife
-      function gameLoop() {
-        if (gameOver) {
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = 'white';
-          ctx.font = '50px "Courier New"';
-          ctx.textAlign = 'center';
-          ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
-          ctx.font = '20px "Courier New"';
-          ctx.fillText('Klicke zum Neustart', canvas.width / 2, canvas.height / 2 + 40);
-          return;
-        }
-
-        update();
-        draw();
-
-        requestAnimationFrame(gameLoop); // Besser für flüssige Animationen
-      }
-
-      // Spielzustand aktualisieren
-      function update() {
-        const head = { ...snake[0] };
-
-        // Berechne den Winkel zum Mauszeiger
-        const angle = Math.atan2(mouse.y - head.y, mouse.x - head.x);
-
-        // Bewege den Kopf in Richtung des Winkels
-        head.x += Math.cos(angle) * speed;
-        head.y += Math.sin(angle) * speed;
-
-        // Kollision mit der Wand (abprallen lassen)
-        if (head.x < snakeRadius) head.x = snakeRadius;
-        if (head.x > canvas.width - snakeRadius) head.x = canvas.width - snakeRadius;
-        if (head.y < snakeRadius) head.y = snakeRadius;
-        if (head.y > canvas.height - snakeRadius) head.y = canvas.height - snakeRadius;
-
-        snake.unshift(head); // Neuen Kopf hinzufügen
-
-        // Kollision mit sich selbst
-        for (let i = 10; i < snake.length; i++) { // Beginne weiter hinten, um nicht sofort zu sterben
-            const dist = Math.hypot(head.x - snake[i].x, head.y - snake[i].y);
-            if (dist < snakeRadius) {
-                gameOver = true;
-                return;
-            }
-        }
-
-        // Futter essen
-        const distToFood = Math.hypot(head.x - food.x, head.y - food.y);
-        if (distToFood < snakeRadius + foodRadius) {
-            score++;
-            // Schlange wachsen lassen, indem wir 5 neue Segmente hinzufügen
-            for (let i = 0; i < 5; i++) {
-                snake.push({ ...snake[snake.length - 1] });
-            }
-            placeFood();
-        } else {
-            snake.pop(); // Letztes Segment entfernen, wenn kein Futter gegessen wurde
-        }
-      }
-
-      // Alles auf dem Canvas zeichnen
-      function draw() {
-        // Hintergrund
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Futter zeichnen
-        ctx.beginPath();
-        ctx.arc(food.x, food.y, foodRadius, 0, Math.PI * 2);
-        ctx.fillStyle = 'red';
-        ctx.fill();
-
-        // Schlange zeichnen (von hinten nach vorne)
-        for (let i = snake.length - 1; i >= 0; i--) {
-            const segment = snake[i];
-            ctx.beginPath();
-            ctx.arc(segment.x, segment.y, snakeRadius, 0, Math.PI * 2);
-            // Farbverlauf für die Schlange
-            const green = 150 + Math.floor(105 * (i / snake.length));
-            ctx.fillStyle = `rgb(0, ${green}, 0)`;
-            ctx.fill();
-        }
-
-        // Kopf hervorheben (Auge)
-        ctx.beginPath();
-        ctx.arc(snake[0].x, snake[0].y, snakeRadius / 2, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
-        ctx.fill();
-
-        // Punktestand
-        ctx.fillStyle = 'white';
-        ctx.font = '20px "Courier New"';
-        ctx.textAlign = 'left';
-        ctx.fillText('Score: ' + score, 10, 25);
-      }
-
-      // Futter an einer zufälligen Position platzieren
-      function placeFood() {
-        food.x = Math.random() * (canvas.width - foodRadius * 2) + foodRadius;
-        food.y = Math.random() * (canvas.height - foodRadius * 2) + foodRadius;
-      }
-
-      // Mausbewegungen verfolgen
-      canvas.addEventListener('mousemove', e => {
-        const rect = canvas.getBoundingClientRect();
-        mouse.x = e.clientX - rect.left;
-        mouse.y = e.clientY - rect.top;
-      });
-
-      // Neustart bei Klick nach Game Over
-      canvas.addEventListener('click', () => {
-        if (gameOver) {
-          init();
-        }
-      });
-
-      // Spiel starten
-      init();
-    </script>
-
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
